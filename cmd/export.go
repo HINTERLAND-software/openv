@@ -115,6 +115,6 @@ func init() {
 	exportCmd.Flags().StringP("file", "f", ".env", "Path to the output environment file")
 	exportCmd.Flags().String("vault", onepassword.DefaultVault, "1Password vault to use")
 
-	exportCmd.MarkFlagRequired("url")
-	exportCmd.MarkFlagRequired("env")
+	cobra.CheckErr(exportCmd.MarkFlagRequired("url"))
+	cobra.CheckErr(exportCmd.MarkFlagRequired("env"))
 }

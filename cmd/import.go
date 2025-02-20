@@ -108,9 +108,9 @@ func init() {
 	importCmd.Flags().String("vault", onepassword.DefaultVault, "1Password vault to use")
 	importCmd.Flags().StringSlice("sync", []string{}, fmt.Sprintf("Sync services to use (available: %s)", strings.Join(onepassword.ValidServices, ", ")))
 
-	importCmd.MarkFlagRequired("env")
-	importCmd.MarkFlagRequired("file")
-	importCmd.MarkFlagRequired("url")
+	cobra.CheckErr(importCmd.MarkFlagRequired("env"))
+	cobra.CheckErr(importCmd.MarkFlagRequired("file"))
+	cobra.CheckErr(importCmd.MarkFlagRequired("url"))
 }
 
 func setToken(cmd *cobra.Command) {

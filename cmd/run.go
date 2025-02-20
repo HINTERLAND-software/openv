@@ -120,6 +120,6 @@ func init() {
 	runCmd.Flags().String("vault", onepassword.DefaultVault, "1Password vault to use")
 	runCmd.Flags().String("command", "", "Command to run (alternative to using --)")
 
-	runCmd.MarkFlagRequired("url")
-	runCmd.MarkFlagRequired("env")
+	cobra.CheckErr(runCmd.MarkFlagRequired("url"))
+	cobra.CheckErr(runCmd.MarkFlagRequired("env"))
 }

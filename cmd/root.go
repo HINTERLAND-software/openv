@@ -49,7 +49,7 @@ func init() {
 	// will be global for your application.
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", fmt.Sprintf("config file (default is $HOME/.%s.yaml)", rootCmd.Use))
 	rootCmd.PersistentFlags().StringVarP(&opServiceAuthToken, "op-token", "", "", "The 1Password service account token for authentication")
-	viper.BindPFlag("op-token", rootCmd.PersistentFlags().Lookup("op-token"))
+	cobra.CheckErr(viper.BindPFlag("op-token", rootCmd.PersistentFlags().Lookup("op-token")))
 	viper.SetDefault("version", version.Info())
 
 	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose output")

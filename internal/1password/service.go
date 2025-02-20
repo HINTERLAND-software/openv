@@ -246,11 +246,3 @@ func (s *Service) GetEnvironment(opts GetEnvironmentOptions) (*EnvironmentResult
 
 	return nil, fmt.Errorf("no environment variables found for %s (%s)", opts.URL, opts.Env)
 }
-
-// Add validation for environment names to prevent injection
-func validateEnvironmentName(env string) error {
-	if strings.ContainsAny(env, "\"'`$;|&<>") {
-		return fmt.Errorf("invalid environment name: contains special characters")
-	}
-	return nil
-}
