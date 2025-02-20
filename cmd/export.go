@@ -51,7 +51,7 @@ Example:
 		}
 
 		logging.Logger.Debug("connecting to 1Password")
-		service, err := onepassword.NewService(cmd.Context(), token)
+		service, err := onepassword.NewService(cmd.Context(), opServiceAuthToken)
 		if err != nil {
 			logging.Logger.Error("failed to create 1Password service", "error", err)
 			return fmt.Errorf("❌ failed to create 1Password service: %w", err)

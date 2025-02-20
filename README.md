@@ -35,8 +35,8 @@ make build
 
 openv requires a [1Password service account token](https://my.1password.com/developer-tools/infrastructure-secrets/serviceaccount/). You can provide it in three ways:
 
-1. Via the `--token` flag
-2. Via the `OPENV_TOKEN` environment variable
+1. Via the `--op-token` flag
+2. Via the `OPENV_OP_TOKEN` environment variable
 3. Via interactive prompt
 
 ### Commands
@@ -64,7 +64,7 @@ openv run --url github.com/org/repo --env production -- npm start
 Create a config file at `~/.openv.yaml` to set default values:
 
 ```yaml
-token: op-service-account-token
+opToken: op-service-account-token
 vault: my-vault-name
 ```
 
@@ -73,7 +73,7 @@ vault: my-vault-name
 Environment variables can be set in the config file or passed as flags.
 
 ```bash
-export OPENV_TOKEN=op-service-account-token
+export OPENV_OP_TOKEN=op-service-account-token
 ```
 
 ### Logging

@@ -59,7 +59,7 @@ Example:
 		sync, _ := cmd.Flags().GetStringSlice("sync")
 
 		logging.Logger.Debug("connecting to 1Password")
-		service, err := onepassword.NewService(cmd.Context(), token)
+		service, err := onepassword.NewService(cmd.Context(), opServiceAuthToken)
 		if err != nil {
 			logging.Logger.Error("failed to create 1Password service", "error", err)
 			return fmt.Errorf("❌ failed to create 1Password service: %w", err)
@@ -115,21 +115,21 @@ func init() {
 
 func setToken(cmd *cobra.Command) {
 	// First check if token is set via flag
-	token = cmd.Flag("token").Value.String()
+	opServiceAuthToken = cmd.Flag("op-token").Value.String()
 
 	// If not set via flag, check config
-	if token == "" {
-		token = viper.GetString("token")
+	if opServiceAuthToken == "" {
+		opServiceAuthToken = viper.GetString("op-token")
 	}
 
-	if token == "" {
+	if opServiceAuthToken == "" {
 		prompt := promptui.Prompt{
-			Label:       "OP Service Account Token",
+			Label:       "1Password Service Account Token",
 			HideEntered: true,
 		}
 
 		var err error
-		token, err = prompt.Run()
+		opServiceAuthToken, err = prompt.Run()
 		cobra.CheckErr(err)
 	}
 }

@@ -14,7 +14,8 @@ import (
 	"github.com/spf13/viper"
 )
 
-var cfgFile, token string
+var cfgFile string
+var opServiceAuthToken string
 var (
 	verbose bool
 	quiet   bool
@@ -47,8 +48,8 @@ func init() {
 	// Cobra supports persistent flags, which, if defined here,
 	// will be global for your application.
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", fmt.Sprintf("config file (default is $HOME/.%s.yaml)", rootCmd.Use))
-	rootCmd.PersistentFlags().StringVarP(&token, "token", "t", "", "The 1password service account token to use to authenticate")
-	viper.BindPFlag("token", rootCmd.PersistentFlags().Lookup("token"))
+	rootCmd.PersistentFlags().StringVarP(&opServiceAuthToken, "op-token", "", "", "The 1Password service account token for authentication")
+	viper.BindPFlag("op-token", rootCmd.PersistentFlags().Lookup("op-token"))
 	viper.SetDefault("version", version.Info())
 
 	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose output")
