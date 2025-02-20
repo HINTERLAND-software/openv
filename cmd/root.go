@@ -57,13 +57,6 @@ func init() {
 
 	// Initialize logger based on verbosity flags
 	cobra.OnInitialize(initLogger)
-
-	// Add other commands here
-	rootCmd.AddCommand(profileCmd)
-	rootCmd.AddCommand(importCmd)
-	rootCmd.AddCommand(exportCmd)
-	rootCmd.AddCommand(runCmd)
-	rootCmd.AddCommand(genDocCmd) // Add the gen-doc command
 }
 
 func initLogger() {

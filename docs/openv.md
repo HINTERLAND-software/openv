@@ -21,14 +21,9 @@ It allows you to import environment variables from a .env file into 1Password.
 
 * [openv completion](openv_completion.md)	 - Generate the autocompletion script for the specified shell
 * [openv export](openv_export.md)	 - Export environment variables from 1Password
-* [openv export](openv_export.md)	 - Export environment variables from 1Password
-* [openv gen-doc](openv_gen-doc.md)	 - Generate CLI documentation in markdown format
 * [openv gen-doc](openv_gen-doc.md)	 - Generate CLI documentation in markdown format
 * [openv import](openv_import.md)	 - Import environment variables into 1Password
-* [openv import](openv_import.md)	 - Import environment variables into 1Password
 * [openv profile](openv_profile.md)	 - Manage sync profiles for different services
-* [openv profile](openv_profile.md)	 - Manage sync profiles for different services
-* [openv run](openv_run.md)	 - Run a command with environment variables from 1Password
 * [openv run](openv_run.md)	 - Run a command with environment variables from 1Password
 * [openv version](openv_version.md)	 - Print the version number of openv
 
