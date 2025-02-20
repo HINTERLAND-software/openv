@@ -15,15 +15,10 @@ import (
 // exportCmd represents the export command
 var exportCmd = &cobra.Command{
 	Use:   "export [flags]",
-	Short: "Export environment variables from 1Password to a .env file",
-	Long: `Export environment variables from 1Password to a .env file.
-The variables are fetched based on the URL and environment.
-
-The URL should be the repository or project URL (e.g., github.com/org/repo).
-Environment specifies the deployment environment (e.g., production, staging).
-
-Example:
-  openv export --url github.com/org/repo --env staging --file .env.staging
+	Short: "Export environment variables from 1Password",
+	Long: `Export environment variables stored in 1Password to a local .env file. 
+This command helps in retrieving and using environment variables for local development or deployment.
+Example usage:
   openv export --url github.com/org/repo --env production -f .env`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		setToken(cmd)

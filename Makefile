@@ -17,3 +17,15 @@ build:
 .PHONY: install
 install:
 	go install -ldflags "$(LDFLAGS)"
+
+.PHONY: lint
+lint:
+	golangci-lint run
+
+.PHONY: format
+format:
+	go fmt ./...
+
+.PHONY: docs
+docs:
+	go run main.go gen-doc

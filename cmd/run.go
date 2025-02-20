@@ -12,14 +12,12 @@ import (
 
 // runCmd represents the run command
 var runCmd = &cobra.Command{
-	Use:   "run [flags] -- [command]",
+	Use:   "run [command]",
 	Short: "Run a command with environment variables from 1Password",
-	Long: `Run a command with environment variables sourced from 1Password.
-The environment variables are fetched based on the URL and environment.
-
-Example:
-  openv run --url github.com/org/repo --env staging -- npm start
-  openv run --url github.com/org/repo --env production --command "docker compose up"`,
+	Long: `Execute a specified command with environment variables sourced from 1Password. 
+This allows for secure and seamless integration of environment variables into your workflow.
+Example usage:
+  openv run --url github.com/org/repo --env production -- npm start`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		setToken(cmd)
 

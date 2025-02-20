@@ -10,26 +10,17 @@ import (
 	"github.com/hinterland-software/openv/internal/version"
 )
 
-// ValidServices represents the valid sync services
-var ValidServices = []string{
-	"github-prefixed",
-	"github-env",
-	"netlify",
-	"vercel",
-	"deno-deploy",
-}
-
 // DefaultVault is the default vault name
 const DefaultVault = "service-account"
 
 // ImportOptions represents the options for importing environment variables
 type ImportOptions struct {
-	Name     string
-	Env      string
-	FilePath string
-	URL      string
-	VaultID  string
-	Sync     []string
+	Name         string
+	Env          string
+	FilePath     string
+	URL          string
+	VaultID      string
+	SyncProfiles []string
 }
 
 // GetEnvironmentOptions represents the options for getting environment variables
@@ -65,11 +56,6 @@ func NewService(ctx context.Context, token string) (*Service, error) {
 
 // Import imports environment variables into 1Password
 func (s *Service) Import(opts ImportOptions) (*op.Item, error) {
-	// Validate sync services
-	if err := validateSyncServices(opts.Sync); err != nil {
-		return nil, err
-	}
-
 	// Read and parse env file
 	envVars, err := parseEnvFile(opts.FilePath)
 	if err != nil {
@@ -105,6 +91,46 @@ func (s *Service) Import(opts ImportOptions) (*op.Item, error) {
 	return s.CreateItem(item)
 }
 
+// GetVault retrieves a vault by title
+func (s *Service) GetVault(title string) (*op.VaultOverview, error) {
+	vaults, err := s.client.Vaults.ListAll(s.ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list vaults: %w", err)
+	}
+
+	for {
+		vault, err := vaults.Next()
+		if errors.Is(err, op.ErrorIteratorDone) {
+			break
+		} else if err != nil {
+			return nil, fmt.Errorf("failed to iterate vault: %w", err)
+		} else if vault.Title == title {
+			return vault, nil
+		}
+	}
+
+	return nil, fmt.Errorf("vault %s not found", title)
+}
+
+// CreateItem creates a new item in 1Password
+func (s *Service) CreateItem(item op.ItemCreateParams) (*op.Item, error) {
+	createdItem, err := s.client.Items.Create(s.ctx, item)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create item: %w", err)
+	}
+	return &createdItem, nil
+}
+
+// UpdateItem updates an existing item in 1Password
+func (s *Service) UpdateItem(item op.Item) (*op.Item, error) {
+	updatedItem, err := s.client.Items.Put(s.ctx, item)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update item: %w", err)
+	}
+	return &updatedItem, nil
+}
+
+// FindExistingItem looks for an existing item with the same name and environment
 func (s *Service) FindExistingItem(opts ImportOptions) (*op.Item, error) {
 	items, err := s.client.Items.ListAll(s.ctx, opts.VaultID)
 	if err != nil {
@@ -138,43 +164,6 @@ func (s *Service) FindExistingItem(opts ImportOptions) (*op.Item, error) {
 	}
 
 	return nil, nil
-}
-
-func (s *Service) UpdateItem(item op.Item) (*op.Item, error) {
-	updatedItem, err := s.client.Items.Put(s.ctx, item)
-	if err != nil {
-		return nil, fmt.Errorf("failed to update item: %w", err)
-	}
-
-	return &updatedItem, nil
-}
-
-func (s *Service) CreateItem(item op.ItemCreateParams) (*op.Item, error) {
-	newItem, err := s.client.Items.Create(s.ctx, item)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create item: %w", err)
-	}
-
-	return &newItem, nil
-}
-
-// GetVault retrieves a vault by title. Returns a VaultOverview containing the vault ID
-// and other metadata. Returns an error if the vault is not found or if there's an API error.
-func (s *Service) GetVault(title string) (*op.VaultOverview, error) {
-	vaults, err := s.client.Vaults.ListAll(s.ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to list vaults: %w", err)
-	}
-	for {
-		vaultOverview, err := vaults.Next()
-		if errors.Is(err, op.ErrorIteratorDone) {
-			break
-		}
-		if vaultOverview.Title == title {
-			return vaultOverview, nil
-		}
-	}
-	return nil, fmt.Errorf("vault not found: %s", title)
 }
 
 // GetEnvironment retrieves environment variables for a given URL and environment.
@@ -245,4 +234,12 @@ func (s *Service) GetEnvironment(opts GetEnvironmentOptions) (*EnvironmentResult
 	}
 
 	return nil, fmt.Errorf("no environment variables found for %s (%s)", opts.URL, opts.Env)
+}
+
+func (s *Service) ResolveToken(ctx context.Context, token string) (string, error) {
+	resolvedToken, err := s.client.Secrets.Resolve(ctx, token)
+	if err != nil {
+		return "", fmt.Errorf("failed to resolve token: %w", err)
+	}
+	return resolvedToken, nil
 }

@@ -12,15 +12,28 @@ A CLI tool for managing environment variables with 1Password.
 
 ## Installation
 
+### Go
+
 ```bash
 go install github.com/hinterland-software/openv@latest
 ```
+
+### Homebrew
+
+```bash
+brew tap hinterland-software/openv
+brew install openv
+```
+
+## Documentation
+
+For detailed usage instructions and command examples, please refer to the [OpenV Documentation](./docs).
 
 ## Development
 
 ### Prerequisites
 
-- Go 1.21 or later
+- Go 1.24 or later
 - Make
 
 ### Building
@@ -38,26 +51,6 @@ openv requires a [1Password service account token](https://my.1password.com/deve
 1. Via the `--op-token` flag
 2. Via the `OPENV_OP_TOKEN` environment variable
 3. Via interactive prompt
-
-### Commands
-
-#### Export Variables
-
-```bash
-openv export --url github.com/org/repo --env production -f .env
-```
-
-#### Import Variables
-
-```bash
-openv import --url github.com/org/repo --env staging --file .env.staging
-```
-
-#### Run Commands
-
-```bash
-openv run --url github.com/org/repo --env production -- npm start
-```
 
 ### Configuration
 
@@ -114,5 +107,5 @@ MIT
 
 ## Support & Security
 
-For security issues, please email security@hinterland-software.com or use GitHub's security advisory feature.
+For security issues, please email [mail@hinterland.software](mailto:mail@hinterland.software) or use GitHub's security advisory feature.
 Do not report security vulnerabilities through public GitHub issues.
