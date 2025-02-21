@@ -2,34 +2,102 @@ package profile
 
 import (
 	"fmt"
+	"reflect"
 	"slices"
 
 	"github.com/spf13/viper"
 )
 
-type SyncType string
-type ServiceType string
-
-const (
-	Environment SyncType    = "environment"
-	Prefixed    SyncType    = "prefixed"
-	GitHub      ServiceType = "github"
-	Netlify     ServiceType = "netlify"
-	Vercel      ServiceType = "vercel"
-	DenoDeploy  ServiceType = "deno-deploy"
-	Shopify     ServiceType = "shopify"
+type (
+	SyncType string
+	FlagType string
 )
 
-var ProfileTypes = []SyncType{Environment, Prefixed}
-var ValidServices = []ServiceType{GitHub, Netlify, Vercel, DenoDeploy, Shopify}
+type Types interface {
+	SyncType | FlagType
+}
+
+const (
+	GithubEnvironmentSecret   SyncType = "github-environment-secret"
+	GithubEnvironmentVariable SyncType = "github-environment-variable"
+	GithubRepoSecret          SyncType = "github-repo-secret"
+	GithubRepoVariable        SyncType = "github-repo-variable"
+	GithubOrgSecret           SyncType = "github-org-secret"
+	GithubOrgVariable         SyncType = "github-org-variable"
+
+	NetlifyDeployContext                    SyncType = "netlify-deploy-context"
+	NetlifyDeployContextScopeBuild          SyncType = "netlify-deploy-context-scope-build"
+	NetlifyDeployContextScopeFunctions      SyncType = "netlify-deploy-context-scope-functions"
+	NetlifyDeployContextScopeRuntime        SyncType = "netlify-deploy-context-scope-runtime"
+	NetlifyDeployContextScopePostProcessing SyncType = "netlify-deploy-context-scope-post-processing"
+
+	VercelEnvironmentCustom      SyncType = "vercel-environment-custom"
+	VercelEnvironmentProduction  SyncType = "vercel-environment-production"
+	VercelEnvironmentPreview     SyncType = "vercel-environment-preview"
+	VercelEnvironmentDevelopment SyncType = "vercel-environment-development"
+
+	DenoDeploy SyncType = "deno-deploy"
+
+	ShopifyHydrogenEnvironment SyncType = "shopify-hydrogen-environment"
+
+	FlagPrefixWithEnv FlagType = "prefix-with-env"
+)
+
+var (
+	ProfileSyncsGithub = []SyncType{
+		GithubEnvironmentSecret,
+		GithubEnvironmentVariable,
+		GithubRepoSecret,
+		GithubRepoVariable,
+		GithubOrgSecret,
+		GithubOrgVariable,
+	}
+
+	ProfileSyncsNetlify = []SyncType{
+		NetlifyDeployContext,
+		NetlifyDeployContextScopeBuild,
+		NetlifyDeployContextScopeFunctions,
+		NetlifyDeployContextScopeRuntime,
+		NetlifyDeployContextScopePostProcessing,
+	}
+
+	ProfileSyncsVercel = []SyncType{
+		VercelEnvironmentCustom,
+		VercelEnvironmentProduction,
+		VercelEnvironmentPreview,
+		VercelEnvironmentDevelopment,
+	}
+
+	ProfileSyncsDeno = []SyncType{
+		DenoDeploy,
+	}
+
+	ProfileSyncsShopify = []SyncType{
+		ShopifyHydrogenEnvironment,
+	}
+
+	Flags = []FlagType{
+		FlagPrefixWithEnv,
+	}
+)
+
+var ActiveProfileSyncs = append([]SyncType{}, ProfileSyncsGithub...)
+
+func TypesToStrings[T Types](types []T) []string {
+	strings := []string{}
+	for _, t := range types {
+		strings = append(strings, string(t))
+	}
+	return strings
+}
 
 // Profile represents a sync profile configuration
 type Profile struct {
-	Name    string      `json:"name" mapstructure:"name"`
-	Type    SyncType    `json:"type" mapstructure:"type"`
-	Token   string      `json:"token" mapstructure:"token"`
-	URL     string      `json:"url" mapstructure:"url"`
-	Service ServiceType `json:"service" mapstructure:"service"`
+	Name  string     `json:"name" mapstructure:"name"`
+	Sync  SyncType   `json:"sync" mapstructure:"sync"`
+	Token string     `json:"token" mapstructure:"token"`
+	URL   string     `json:"url" mapstructure:"url"`
+	Flags []FlagType `json:"flags" mapstructure:"flags"`
 }
 
 // Service manages sync profiles
@@ -53,7 +121,7 @@ func (s *Service) Save() error {
 }
 
 // AddProfile adds a new sync profile
-func (s *Service) AddProfile(name, url string, service ServiceType, syncType SyncType, token string) error {
+func (s *Service) AddProfile(name, url string, syncType SyncType, token string, flags []FlagType) error {
 	// Validate name uniqueness
 	for _, p := range s.Profiles {
 		if p.Name == name {
@@ -62,23 +130,22 @@ func (s *Service) AddProfile(name, url string, service ServiceType, syncType Syn
 	}
 
 	// Validate sync type
-	if !slices.Contains(ProfileTypes, syncType) {
-		return fmt.Errorf("invalid sync type: %s", syncType)
+	if err := ValidateType(syncType, ActiveProfileSyncs); err != nil {
+		return err
 	}
 
-	// Validate service
-	isValidService := false
-	for _, s := range ValidServices {
-		if service == s {
-			isValidService = true
-			break
-		}
-	}
-	if !isValidService {
-		return fmt.Errorf("invalid service: %s", service)
+	// Validate flags
+	if err := ValidateFlags(flags); err != nil {
+		return err
 	}
 
-	s.Profiles = append(s.Profiles, Profile{Name: name, Type: syncType, Token: token, URL: url, Service: service})
+	s.Profiles = append(s.Profiles, Profile{
+		Name:  name,
+		Sync:  syncType,
+		Token: token,
+		URL:   url,
+		Flags: flags,
+	})
 	return s.Save()
 }
 
@@ -109,30 +176,23 @@ func (s *Service) RemoveProfile(name string) error {
 }
 
 // UpdateProfile updates an existing profile
-func (s *Service) UpdateProfile(name, url string, service ServiceType, syncType SyncType, token string) error {
+func (s *Service) UpdateProfile(name, url string, syncType SyncType, token string, flags []FlagType) error {
 	// Validate sync type
-	if !slices.Contains(ProfileTypes, syncType) {
-		return fmt.Errorf("invalid sync type: %s", syncType)
+	if err := ValidateType(syncType, ActiveProfileSyncs); err != nil {
+		return err
 	}
 
-	// Validate service
-	isValidService := false
-	for _, s := range ValidServices {
-		if service == s {
-			isValidService = true
-			break
-		}
-	}
-	if !isValidService {
-		return fmt.Errorf("invalid service: %s", service)
+	// Validate flags
+	if err := ValidateFlags(flags); err != nil {
+		return err
 	}
 
 	for i, p := range s.Profiles {
 		if p.Name == name {
-			s.Profiles[i].Type = syncType
+			s.Profiles[i].Sync = syncType
 			s.Profiles[i].Token = token
 			s.Profiles[i].URL = url
-			s.Profiles[i].Service = service
+			s.Profiles[i].Flags = flags
 			return s.Save()
 		}
 	}
@@ -143,6 +203,22 @@ func (s *Service) ValidateProfiles(profiles []string) error {
 	for _, profile := range profiles {
 		if _, err := s.GetProfile(profile); err != nil {
 			return fmt.Errorf("invalid sync profile %s: %w", profile, err)
+		}
+	}
+	return nil
+}
+
+func ValidateType[T Types](t T, validTypes []T) error {
+	if !slices.Contains(validTypes, t) {
+		return fmt.Errorf("%s is not a valid %s", t, reflect.TypeOf(t).String())
+	}
+	return nil
+}
+
+func ValidateFlags(flags []FlagType) error {
+	for _, flag := range flags {
+		if !slices.Contains(Flags, flag) {
+			return fmt.Errorf("%s is not a valid flag", flag)
 		}
 	}
 	return nil

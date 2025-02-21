@@ -1,8 +1,11 @@
 package logging
 
 import (
+	"io"
 	"log/slog"
-	"os"
+	"time"
+
+	"github.com/lmittmann/tint"
 )
 
 var (
@@ -10,40 +13,35 @@ var (
 	Logger *slog.Logger
 )
 
-// LogLevel represents the logging level
-type LogLevel string
-
-const (
-	// Debug level for verbose output
-	Debug LogLevel = "debug"
-	// Info level for normal output
-	Info LogLevel = "info"
-	// Warn level for warning messages
-	Warn LogLevel = "warn"
-	// Error level for error messages
-	Error LogLevel = "error"
-)
+type Options struct {
+	JSON    bool
+	Quiet   bool
+	Verbose bool
+	Output  io.Writer
+}
 
 // InitLogger initializes the logger with the specified level
-func InitLogger(level LogLevel) {
+func InitLogger(opts Options) {
 	var logLevel slog.Level
-	switch level {
-	case Debug:
-		logLevel = slog.LevelDebug
-	case Info:
-		logLevel = slog.LevelInfo
-	case Warn:
-		logLevel = slog.LevelWarn
-	case Error:
+	switch {
+	case opts.Quiet:
 		logLevel = slog.LevelError
+	case opts.Verbose:
+		logLevel = slog.LevelDebug
 	default:
 		logLevel = slog.LevelInfo
 	}
-
-	opts := &slog.HandlerOptions{
-		Level: logLevel,
+	slog.SetLogLoggerLevel(logLevel)
+	if opts.JSON {
+		Logger = slog.New(slog.NewJSONHandler(opts.Output, &slog.HandlerOptions{
+			Level:     logLevel,
+			AddSource: logLevel == slog.LevelDebug,
+		}))
+	} else {
+		Logger = slog.New(tint.NewHandler(opts.Output, &tint.Options{
+			Level:      logLevel,
+			TimeFormat: time.RFC3339,
+			AddSource:  logLevel == slog.LevelDebug,
+		}))
 	}
-
-	Logger = slog.New(slog.NewTextHandler(os.Stderr, opts))
-	slog.SetDefault(Logger)
 }

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/hinterland-software/openv/internal/logging"
 	"github.com/spf13/cobra"
 	"github.com/spf13/cobra/doc"
 )
@@ -28,12 +29,12 @@ var genDocCmd = &cobra.Command{
 			return fmt.Errorf("failed to generate documentation: %w", err)
 		}
 
-		fmt.Printf("Documentation generated in %s\n", outputDir)
+		logging.Logger.Info("Documentation generated", "dir", outputDir)
 		return nil
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(genDocCmd)
-	genDocCmd.Flags().String("output-dir", "./docs", "Directory to output the generated documentation")
+	genDocCmd.Flags().StringP("output-dir", "o", "./docs", "Directory to output the generated documentation")
 }

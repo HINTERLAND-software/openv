@@ -7,11 +7,10 @@ import (
 	"fmt"
 
 	onepassword "github.com/hinterland-software/openv/internal/1password"
+	"github.com/hinterland-software/openv/internal/cli"
 	"github.com/hinterland-software/openv/internal/logging"
 	"github.com/hinterland-software/openv/internal/profile"
-	"github.com/manifoldco/promptui"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 // importCmd represents the import command
@@ -23,7 +22,11 @@ The variables are stored securely with metadata and can be synchronized with dif
 Example usage:
   openv import --url github.com/org/repo --env staging --file .env.staging`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		setToken(cmd)
+		var err error
+		opServiceAuthToken, err = cli.GetToken(cmd)
+		if err != nil {
+			return fmt.Errorf("❌ failed to get token: %w", err)
+		}
 
 		url, err := cmd.Flags().GetString("url")
 		if err != nil {
@@ -44,7 +47,7 @@ Example usage:
 		}
 		vaultTitle, _ := cmd.Flags().GetString("vault")
 
-		logging.Logger.Info("starting import",
+		logging.Logger.Debug("starting import",
 			"url", url,
 			"name", name,
 			"env", env,
@@ -60,7 +63,6 @@ Example usage:
 		logging.Logger.Debug("connecting to 1Password")
 		service, err := onepassword.NewService(cmd.Context(), opServiceAuthToken)
 		if err != nil {
-			logging.Logger.Error("failed to create 1Password service", "error", err)
 			return fmt.Errorf("❌ failed to create 1Password service: %w", err)
 		}
 
@@ -74,7 +76,6 @@ Example usage:
 		logging.Logger.Debug("looking up vault", "vault", vaultTitle)
 		vault, err := service.GetVault(vaultTitle)
 		if err != nil {
-			logging.Logger.Error("failed to get vault", "error", err)
 			return fmt.Errorf("❌ failed to get vault: %w", err)
 		}
 
@@ -91,16 +92,15 @@ Example usage:
 			"name", name,
 			"env", env,
 			"sync-profiles", syncProfiles)
+
 		item, err := service.Import(opts)
 		if err != nil {
-			logging.Logger.Error("failed to import environment variables", "error", err)
 			return fmt.Errorf("❌ failed to import environment variables: %w", err)
 		}
 
 		logging.Logger.Info("successfully imported environment variables",
 			"name", name,
 			"item_id", item.ID)
-		fmt.Printf("✅ Successfully imported environment variables for %s (%s)\n", name, item.ID)
 		return nil
 	},
 }
@@ -117,25 +117,4 @@ func init() {
 	cobra.CheckErr(importCmd.MarkFlagRequired("env"))
 	cobra.CheckErr(importCmd.MarkFlagRequired("file"))
 	cobra.CheckErr(importCmd.MarkFlagRequired("url"))
-}
-
-func setToken(cmd *cobra.Command) {
-	// First check if token is set via flag
-	opServiceAuthToken = cmd.Flag("op-token").Value.String()
-
-	// If not set via flag, check config
-	if opServiceAuthToken == "" {
-		opServiceAuthToken = viper.GetString("op-token")
-	}
-
-	if opServiceAuthToken == "" {
-		prompt := promptui.Prompt{
-			Label:       "1Password Service Account Token",
-			HideEntered: true,
-		}
-
-		var err error
-		opServiceAuthToken, err = prompt.Run()
-		cobra.CheckErr(err)
-	}
 }

@@ -1,24 +1,26 @@
-## openv run
+## openv push
 
-Run a command with environment variables from 1Password
+Push environment variables to a file or sync profile
 
 ### Synopsis
 
-Execute a specified command with environment variables sourced from 1Password. 
-This allows for secure and seamless integration of environment variables into your workflow.
+Push environment variables stored in 1Password to a local .env file or sync them to a specified service using a sync profile.
 Example usage:
-  openv run --url github.com/org/repo --env production -- npm start
+  openv push --url github.com/org/repo --env production --file .env
+  openv push --url github.com/org/repo --env production --profile my-github-profile
 
 ```
-openv run [command] [flags]
+openv push [flags]
 ```
 
 ### Options
 
 ```
-      --command string   Command to run (alternative to using --)
       --env string       Environment (e.g., production, staging)
-  -h, --help             help for run
+  -f, --file string      Path to the output environment file (default ".env")
+  -y, --force            Do not prompt for confirmation
+  -h, --help             help for push
+      --profile string   Sync profile name
       --url string       Service URL
       --vault string     1Password vault to use (default "service-account")
 ```

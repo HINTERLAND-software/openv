@@ -34,6 +34,7 @@ type GetEnvironmentOptions struct {
 type EnvironmentResult struct {
 	Variables map[string]string
 	ItemID    string
+	Env       string
 }
 
 // Service handles 1Password operations including environment variable management
@@ -223,23 +224,28 @@ func (s *Service) GetEnvironment(opts GetEnvironmentOptions) (*EnvironmentResult
 
 		// Found the right item, extract environment variables
 		for _, field := range item.Fields {
-			if field.SectionID != nil && *field.SectionID == "variables" {
+			if field.SectionID != nil && *field.SectionID == variablesSection.ID {
 				envVars[field.Title] = field.Value
 			}
 		}
+
 		return &EnvironmentResult{
 			Variables: envVars,
 			ItemID:    item.ID,
+			Env:       opts.Env,
 		}, nil
 	}
 
 	return nil, fmt.Errorf("no environment variables found for %s (%s)", opts.URL, opts.Env)
 }
 
-func (s *Service) ResolveToken(ctx context.Context, token string) (string, error) {
-	resolvedToken, err := s.client.Secrets.Resolve(ctx, token)
-	if err != nil {
-		return "", fmt.Errorf("failed to resolve token: %w", err)
+func (s *Service) ResolveToken(token string) (string, error) {
+	if strings.HasPrefix(token, "op://") {
+		resolvedToken, err := s.client.Secrets.Resolve(s.ctx, token)
+		if err != nil {
+			return "", fmt.Errorf("failed to resolve token: %w", err)
+		}
+		return resolvedToken, nil
 	}
-	return resolvedToken, nil
+	return token, nil
 }

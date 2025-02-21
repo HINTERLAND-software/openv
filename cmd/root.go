@@ -17,8 +17,9 @@ import (
 var cfgFile string
 var opServiceAuthToken string
 var (
-	verbose bool
-	quiet   bool
+	verboseFlag bool
+	quietFlag   bool
+	jsonFlag    bool
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -42,7 +43,7 @@ func Execute() {
 }
 
 func init() {
-	cobra.OnInitialize(initConfig)
+	cobra.OnInitialize(initLogger, initConfig)
 
 	// Here you will define your flags and configuration settings.
 	// Cobra supports persistent flags, which, if defined here,
@@ -52,24 +53,24 @@ func init() {
 	cobra.CheckErr(viper.BindPFlag("op-token", rootCmd.PersistentFlags().Lookup("op-token")))
 	viper.SetDefault("version", version.Info())
 
-	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose output")
-	rootCmd.PersistentFlags().BoolVarP(&quiet, "quiet", "q", true, "Suppress all output except errors")
-
-	// Initialize logger based on verbosity flags
-	cobra.OnInitialize(initLogger)
+	rootCmd.PersistentFlags().BoolVarP(&verboseFlag, "verbose", "v", false, "Enable verbose output")
+	rootCmd.PersistentFlags().BoolVarP(&quietFlag, "quiet", "q", false, "Suppress all output except errors")
+	rootCmd.PersistentFlags().BoolVarP(&jsonFlag, "json", "j", false, "Output in JSON format")
 }
 
 func initLogger() {
-	var level logging.LogLevel
-	switch {
-	case quiet:
-		level = logging.Error
-	case verbose:
-		level = logging.Debug
-	default:
-		level = logging.Info
-	}
-	logging.InitLogger(level)
+	logging.InitLogger(logging.Options{
+		JSON:    jsonFlag,
+		Quiet:   quietFlag,
+		Verbose: verboseFlag,
+		Output:  os.Stdout,
+	})
+	logging.Logger.Debug("logger initialized",
+		"json", jsonFlag,
+		"quiet", quietFlag,
+		"verbose", verboseFlag,
+		"version", version.Info(),
+	)
 }
 
 // initConfig reads in config file and ENV variables if set.
@@ -93,7 +94,7 @@ func initConfig() {
 
 	// If a config file is found, read it in.
 	if err := viper.ReadInConfig(); err == nil {
-		fmt.Fprintln(os.Stderr, "📁 Using config file:", viper.ConfigFileUsed())
+		logging.Logger.Debug("using config file", "file", viper.ConfigFileUsed())
 	}
 
 }

@@ -28,4 +28,15 @@ format:
 
 .PHONY: docs
 docs:
-	go run main.go gen-doc
+	# Create a temporary directory for generating docs
+	mkdir -p tmp_docs
+	# Generate the documentation in the temporary directory
+	go run main.go gen-doc -o tmp_docs
+	# If the generation is successful, replace the existing docs directory
+	if [ $$? -eq 0 ]; then \
+		rm -rf docs; \
+		mv tmp_docs docs; \
+	else \
+		rm -rf tmp_docs; \
+		echo "Documentation generation failed. Existing docs are preserved."; \
+	fi

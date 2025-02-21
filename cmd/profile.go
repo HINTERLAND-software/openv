@@ -3,7 +3,10 @@ package cmd
 import (
 	"fmt"
 	"slices"
+	"strings"
 
+	"github.com/hinterland-software/openv/internal/cli"
+	"github.com/hinterland-software/openv/internal/logging"
 	"github.com/hinterland-software/openv/internal/profile"
 	"github.com/manifoldco/promptui"
 	"github.com/spf13/cobra"
@@ -20,19 +23,24 @@ var profileAddCmd = &cobra.Command{
 	Short: "Add a new sync profile",
 	Long:  `Add a new sync profile to manage environment variables for a specific service. You can specify the profile name, type, token, URL, and service type.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		setToken(cmd)
+		var err error
+		opServiceAuthToken, err = cli.GetToken(cmd)
+		if err != nil {
+			return fmt.Errorf("❌ failed to get token: %w", err)
+		}
 
 		svc := profile.NewService()
 		name, _ := cmd.Flags().GetString("name")
 		typeStr, _ := cmd.Flags().GetString("type")
 		token, _ := cmd.Flags().GetString("token")
 		url, _ := cmd.Flags().GetString("url")
-		service, _ := cmd.Flags().GetString("service")
+		flagsArray, _ := cmd.Flags().GetStringArray("flags")
 
 		// Interactive mode if flags not provided
 		if name == "" {
 			prompt := promptui.Prompt{
-				Label: "Profile Name",
+				Label:    "Profile Name",
+				Validate: NotEmpty("name cannot be empty"),
 			}
 			var err error
 			name, err = prompt.Run()
@@ -44,11 +52,14 @@ var profileAddCmd = &cobra.Command{
 		if typeStr == "" {
 			prompt := promptui.Select{
 				Label: "Sync Type",
-				Items: profile.ProfileTypes,
+				Items: profile.ActiveProfileSyncs,
 			}
 			_, result, err := prompt.Run()
 			if err != nil {
 				return err
+			}
+			if result == "" {
+				return fmt.Errorf("sync type cannot be empty")
 			}
 			typeStr = result
 		}
@@ -57,6 +68,7 @@ var profileAddCmd = &cobra.Command{
 			prompt := promptui.Prompt{
 				Label:       "Service Token",
 				HideEntered: true,
+				Validate:    NotEmpty("token cannot be empty"),
 			}
 			var err error
 			token, err = prompt.Run()
@@ -67,7 +79,8 @@ var profileAddCmd = &cobra.Command{
 
 		if url == "" {
 			prompt := promptui.Prompt{
-				Label: "Service URL",
+				Label:    "Service URL",
+				Validate: NotEmpty("URL cannot be empty"),
 			}
 			var err error
 			url, err = prompt.Run()
@@ -76,19 +89,28 @@ var profileAddCmd = &cobra.Command{
 			}
 		}
 
-		if service == "" {
-			prompt := promptui.Select{
-				Label: "Service",
-				Items: profile.ValidServices,
-			}
-			_, result, err := prompt.Run()
+		flags := []profile.FlagType{}
+		if len(flagsArray) == 0 {
+			selectedItems, err := cli.SelectItems(
+				1,
+				cli.TypesToItems(
+					profile.TypesToStrings(profile.Flags),
+					[]string{},
+				),
+			)
 			if err != nil {
 				return err
 			}
-			service = result
+			for _, item := range selectedItems {
+				flags = append(flags, profile.FlagType(item.ID))
+			}
+		} else {
+			for _, item := range flagsArray {
+				flags = append(flags, profile.FlagType(item))
+			}
 		}
 
-		return svc.AddProfile(name, url, profile.ServiceType(service), profile.SyncType(typeStr), token)
+		return svc.AddProfile(name, url, profile.SyncType(typeStr), token, flags)
 	},
 }
 
@@ -101,12 +123,12 @@ var profileListCmd = &cobra.Command{
 		profiles := svc.ListProfiles()
 
 		if len(profiles) == 0 {
-			fmt.Println("No profiles configured")
+			logging.Logger.Info("No profiles configured")
 			return nil
 		}
 
 		for _, p := range profiles {
-			fmt.Printf("- %s (%s)\n", p.Name, p.Type)
+			logging.Logger.Info("Profile", "name", p.Name, "type", p.Sync)
 		}
 		return nil
 	},
@@ -125,14 +147,14 @@ var profileRemoveCmd = &cobra.Command{
 var profileUpdateCmd = &cobra.Command{
 	Use:   "update [name]",
 	Short: "Update an existing sync profile",
-	Long:  `Update the details of an existing sync profile, such as its type, token, URL, and service type. The profile is identified by its name.`,
+	Long:  `Update the details of an existing sync profile, such as its type, token, URL. The profile is identified by its name.`,
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		name := args[0]
-		typeStr, _ := cmd.Flags().GetString("type")
+		syncStr, _ := cmd.Flags().GetString("sync")
 		token, _ := cmd.Flags().GetString("token")
 		url, _ := cmd.Flags().GetString("url")
-		service, _ := cmd.Flags().GetString("service")
+		flagsArray, _ := cmd.Flags().GetStringArray("flags")
 
 		svc := profile.NewService()
 		existingProfile, err := svc.GetProfile(name)
@@ -141,17 +163,20 @@ var profileUpdateCmd = &cobra.Command{
 		}
 
 		// Interactive mode if flags not provided
-		if typeStr == "" {
+		if syncStr == "" {
 			prompt := promptui.Select{
 				Label:     "Sync Type",
-				Items:     profile.ProfileTypes,
-				CursorPos: slices.Index(profile.ProfileTypes, existingProfile.Type),
+				Items:     profile.ActiveProfileSyncs,
+				CursorPos: slices.Index(profile.ActiveProfileSyncs, existingProfile.Sync),
 			}
 			_, result, err := prompt.Run()
 			if err != nil {
 				return err
 			}
-			typeStr = result
+			if result == "" {
+				return fmt.Errorf("sync type cannot be empty")
+			}
+			syncStr = result
 		}
 
 		if token == "" {
@@ -159,6 +184,7 @@ var profileUpdateCmd = &cobra.Command{
 				Label:       "Service Token",
 				HideEntered: true,
 				Default:     existingProfile.Token,
+				Validate:    NotEmpty("token cannot be empty"),
 			}
 			var err error
 			token, err = prompt.Run()
@@ -169,8 +195,9 @@ var profileUpdateCmd = &cobra.Command{
 
 		if url == "" {
 			prompt := promptui.Prompt{
-				Label:   "Service URL",
-				Default: existingProfile.URL,
+				Label:    "Service URL",
+				Default:  existingProfile.URL,
+				Validate: NotEmpty("URL cannot be empty"),
 			}
 			var err error
 			url, err = prompt.Run()
@@ -179,20 +206,32 @@ var profileUpdateCmd = &cobra.Command{
 			}
 		}
 
-		if service == "" {
-			prompt := promptui.Select{
-				Label:     "Service",
-				Items:     profile.ValidServices,
-				CursorPos: slices.Index(profile.ValidServices, existingProfile.Service),
+		flags := []profile.FlagType{}
+		if len(flagsArray) == 0 {
+			selectedPos := 0
+			if len(existingProfile.Flags) > 0 {
+				selectedPos = slices.Index(profile.Flags, existingProfile.Flags[0])
 			}
-			_, result, err := prompt.Run()
+			selectedItems, err := cli.SelectItems(
+				selectedPos,
+				cli.TypesToItems(
+					profile.TypesToStrings(profile.Flags),
+					profile.TypesToStrings(existingProfile.Flags),
+				),
+			)
 			if err != nil {
 				return err
 			}
-			service = result
+			for _, item := range selectedItems {
+				flags = append(flags, profile.FlagType(item.ID))
+			}
+		} else {
+			for _, item := range flagsArray {
+				flags = append(flags, profile.FlagType(item))
+			}
 		}
 
-		return svc.UpdateProfile(name, url, profile.ServiceType(service), profile.SyncType(typeStr), token)
+		return svc.UpdateProfile(name, url, profile.SyncType(syncStr), token, flags)
 	},
 }
 
@@ -204,13 +243,23 @@ func init() {
 	profileCmd.AddCommand(profileUpdateCmd)
 
 	profileAddCmd.Flags().String("name", "", "Profile name")
-	profileAddCmd.Flags().String("type", "", "Sync type (environment or prefixed)")
+
+	profileAddCmd.Flags().String("sync", "", fmt.Sprintf("Sync type (%s)", strings.Join(profile.TypesToStrings(profile.ActiveProfileSyncs), ", ")))
 	profileAddCmd.Flags().String("token", "", "Service token")
 	profileAddCmd.Flags().String("url", "", "Service URL")
-	profileAddCmd.Flags().String("service", "", "Service type (github, netlify, vercel, deno-deploy, shopify)")
+	profileAddCmd.Flags().StringArray("flags", nil, fmt.Sprintf("Flags (%s)", strings.Join(profile.TypesToStrings(profile.Flags), ", ")))
 
-	profileUpdateCmd.Flags().String("type", "", "Sync type (environment or prefixed)")
+	profileUpdateCmd.Flags().String("sync", "", fmt.Sprintf("Sync type (%s)", strings.Join(profile.TypesToStrings(profile.ActiveProfileSyncs), ", ")))
 	profileUpdateCmd.Flags().String("token", "", "Service token")
 	profileUpdateCmd.Flags().String("url", "", "Service URL")
-	profileUpdateCmd.Flags().String("service", "", "Service type (github, netlify, vercel, deno-deploy, shopify)")
+	profileUpdateCmd.Flags().StringArray("flags", nil, fmt.Sprintf("Flags (%s)", strings.Join(profile.TypesToStrings(profile.Flags), ", ")))
+}
+
+func NotEmpty(errorMessage string) promptui.ValidateFunc {
+	return promptui.ValidateFunc(func(input string) error {
+		if input == "" {
+			return fmt.Errorf("%s", errorMessage)
+		}
+		return nil
+	})
 }

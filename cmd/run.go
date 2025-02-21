@@ -6,6 +6,7 @@ import (
 	"os/exec"
 
 	onepassword "github.com/hinterland-software/openv/internal/1password"
+	"github.com/hinterland-software/openv/internal/cli"
 	"github.com/hinterland-software/openv/internal/logging"
 	"github.com/spf13/cobra"
 )
@@ -19,7 +20,11 @@ This allows for secure and seamless integration of environment variables into yo
 Example usage:
   openv run --url github.com/org/repo --env production -- npm start`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		setToken(cmd)
+		var err error
+		opServiceAuthToken, err = cli.GetToken(cmd)
+		if err != nil {
+			return fmt.Errorf("❌ failed to get token: %w", err)
+		}
 
 		url, err := cmd.Flags().GetString("url")
 		if err != nil {
@@ -36,7 +41,7 @@ Example usage:
 			return fmt.Errorf("❌ no command specified. Use -- <command> or --command '<command>'")
 		}
 
-		logging.Logger.Info("starting command execution",
+		logging.Logger.Debug("starting command execution",
 			"url", url,
 			"env", env,
 			"command", command,
@@ -51,14 +56,12 @@ Example usage:
 		logging.Logger.Debug("connecting to 1Password")
 		service, err := onepassword.NewService(cmd.Context(), opServiceAuthToken)
 		if err != nil {
-			logging.Logger.Error("failed to create 1Password service", "error", err)
 			return fmt.Errorf("❌ failed to create 1Password service: %w", err)
 		}
 
 		logging.Logger.Debug("looking up vault", "vault", vaultTitle)
 		vault, err := service.GetVault(vaultTitle)
 		if err != nil {
-			logging.Logger.Error("failed to get vault", "error", err)
 			return fmt.Errorf("❌ failed to get vault: %w", err)
 		}
 
@@ -71,7 +74,6 @@ Example usage:
 			VaultID: vault.ID,
 		})
 		if err != nil {
-			logging.Logger.Error("failed to get environment variables", "error", err)
 			return fmt.Errorf("❌ failed to get environment variables: %w", err)
 		}
 
@@ -99,9 +101,8 @@ Example usage:
 		cmdToRun.Stdout = os.Stdout
 		cmdToRun.Stderr = os.Stderr
 
-		fmt.Printf("🚀 Running command with %d environment variables\n", len(envVars.Variables))
+		logging.Logger.Info("running command", "env_vars_count", len(envVars.Variables))
 		if err := cmdToRun.Run(); err != nil {
-			logging.Logger.Error("command failed", "error", err)
 			return fmt.Errorf("❌ command failed: %w", err)
 		}
 
