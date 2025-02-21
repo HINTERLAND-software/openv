@@ -10,6 +10,7 @@ import (
 
 	"github.com/google/go-github/v69/github"
 	"github.com/hinterland-software/openv/internal"
+	"github.com/hinterland-software/openv/internal/logging"
 	"golang.org/x/crypto/nacl/box"
 	"golang.org/x/oauth2"
 )
@@ -74,7 +75,10 @@ func (s *GitHubService) SyncToOrgSecret(org string, envVars map[string]string, w
 func (s *GitHubService) cleanupOrgSecrets(org string, key string, envVars map[string]string) {
 	existing, _, _ := s.client.Actions.GetOrgVariable(s.ctx, org, key)
 	for _, removed := range getRemovedEnvVars(existing, envVars) {
-		s.client.Actions.DeleteOrgSecret(s.ctx, org, removed)
+		_, err := s.client.Actions.DeleteOrgSecret(s.ctx, org, removed)
+		if err != nil {
+			logging.Logger.Warn("failed to delete organization secret", "error", err)
+		}
 	}
 }
 
@@ -118,7 +122,10 @@ func (s *GitHubService) SyncToRepoSecret(owner, repo string, envVars map[string]
 func (s *GitHubService) cleanupRepoSecrets(owner, repo, key string, envVars map[string]string) {
 	existing, _, _ := s.client.Actions.GetRepoVariable(s.ctx, owner, repo, key)
 	for _, removed := range getRemovedEnvVars(existing, envVars) {
-		s.client.Actions.DeleteRepoSecret(s.ctx, owner, repo, removed)
+		_, err := s.client.Actions.DeleteRepoSecret(s.ctx, owner, repo, removed)
+		if err != nil {
+			logging.Logger.Warn("failed to delete repository secret", "error", err)
+		}
 	}
 }
 
@@ -174,7 +181,10 @@ func (s *GitHubService) SyncToRepoEnvironmentSecret(owner, repoName, env string,
 func (s *GitHubService) cleanupRepoEnvironmentSecrets(owner, repoName, env, key string, repoID int, envVars map[string]string) {
 	existing, _, _ := s.client.Actions.GetEnvVariable(s.ctx, owner, repoName, env, key)
 	for _, removed := range getRemovedEnvVars(existing, envVars) {
-		s.client.Actions.DeleteEnvSecret(s.ctx, repoID, env, removed)
+		_, err := s.client.Actions.DeleteEnvSecret(s.ctx, repoID, env, removed)
+		if err != nil {
+			logging.Logger.Warn("failed to delete repository environment secret", "error", err)
+		}
 	}
 }
 
@@ -214,7 +224,10 @@ func (s *GitHubService) SyncToOrgVariable(org string, envVars map[string]string,
 func (s *GitHubService) cleanupOrgVariables(org string, key string, envVars map[string]string) {
 	existing, _, _ := s.client.Actions.GetOrgVariable(s.ctx, org, key)
 	for _, removed := range getRemovedEnvVars(existing, envVars) {
-		s.client.Actions.DeleteOrgVariable(s.ctx, org, removed)
+		_, err := s.client.Actions.DeleteOrgVariable(s.ctx, org, removed)
+		if err != nil {
+			logging.Logger.Warn("failed to delete organization variable", "error", err)
+		}
 	}
 }
 
@@ -254,7 +267,10 @@ func (s *GitHubService) SyncToRepoVariable(owner, repo string, envVars map[strin
 func (s *GitHubService) cleanupRepoVariables(owner, repo string, key string, envVars map[string]string) {
 	existing, _, _ := s.client.Actions.GetRepoVariable(s.ctx, owner, repo, key)
 	for _, removed := range getRemovedEnvVars(existing, envVars) {
-		s.client.Actions.DeleteRepoVariable(s.ctx, owner, repo, removed)
+		_, err := s.client.Actions.DeleteRepoVariable(s.ctx, owner, repo, removed)
+		if err != nil {
+			logging.Logger.Warn("failed to delete repository variable", "error", err)
+		}
 	}
 }
 
@@ -294,7 +310,10 @@ func (s *GitHubService) SyncToRepoEnvironmentVariable(owner, repoName, env strin
 func (s *GitHubService) cleanupRepoEnvironmentVariables(owner, repoName, env string, key string, envVars map[string]string) {
 	existing, _, _ := s.client.Actions.GetEnvVariable(s.ctx, owner, repoName, env, key)
 	for _, removed := range getRemovedEnvVars(existing, envVars) {
-		s.client.Actions.DeleteEnvVariable(s.ctx, owner, repoName, env, removed)
+		_, err := s.client.Actions.DeleteEnvVariable(s.ctx, owner, repoName, env, removed)
+		if err != nil {
+			logging.Logger.Warn("failed to delete repository environment variable", "error", err)
+		}
 	}
 }
 
@@ -313,7 +332,10 @@ func getRemovedEnvVars(existing *github.ActionsVariable, newVarMap map[string]st
 	existingVarNames := []string{}
 	if existing != nil {
 		// existing.Value contains a JSON array of variable names
-		json.Unmarshal([]byte(existing.Value), &existingVarNames)
+		err := json.Unmarshal([]byte(existing.Value), &existingVarNames)
+		if err != nil {
+			logging.Logger.Warn("failed to unmarshal existing variable names", "error", err)
+		}
 	}
 
 	removedVarNames := []string{}
