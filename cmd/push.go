@@ -218,6 +218,8 @@ func exportToFile(envVars *onepassword.EnvironmentResult, url, env string, file 
 	for _, key := range keys {
 		value := envVars.Variables[key]
 		if strings.Contains(value, " ") || strings.Contains(value, "#") {
+			value = strings.ReplaceAll(value, `\`, `\\`)
+			value = strings.ReplaceAll(value, `"`, `\"`)
 			value = fmt.Sprintf(`"%s"`, value)
 		}
 		content.WriteString(fmt.Sprintf("%s=%s\n", key, value))
